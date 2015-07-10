@@ -10,7 +10,8 @@ docker run -ti -e BRANCH_NUMBER=13 -e GIT_REPOSITORY_URL=https://github.com/rawl
 
 # Configuration Variables
 
-- `FILE_PATTERN` - file pattern used to apply the search on
+- `INCLUDE_FILE_PATTERN` - file pattern used to apply the search on
+- `EXCLUDE_FILE_PATTERN` - file pattern to exclude from the search
 - `FROM` - search text
 - `TO` - replace text
 - `GIT_REPOSITORY_URL` - repository to clone and commit back to
@@ -21,7 +22,8 @@ docker run -ti -e BRANCH_NUMBER=13 -e GIT_REPOSITORY_URL=https://github.com/rawl
 # Example:
 
 ```
-export $FILE_PATTERN=pom.xml
+export $INCLUDE_FILE_PATTERN=*.xml
+export $EXCLUDE_FILE_PATTERN=myprecious.xml
 export $FROM="<myversion>1.0.0</myversion>"
 export $TO="<myversion>2.0.0</myversion>"
 

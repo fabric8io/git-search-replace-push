@@ -19,7 +19,9 @@ gclonecd $GIT_REPOSITORY_URL
 git checkout -b $GIT_BRANCH
 
 # use sed to search and replace
-find . -name $FILE_PATTERN -exec sed -i 's@'$FROM'@'$TO'@g' {} \;
+# using '@' as the delimeter so to avoid a clash when searching for pom versions, e.g. <version>1.0.0</version>
+# using '\' to escape search string and avoid matching '.' as metachars
+perl -p -i -e 's@\Q'$FROM'@'$TO'@g' `find . -name "$INCLUDE_FILE_PATTERN" ! -name "$EXCLUDE_FILE_PATTERN"`
 
 # if no changes have been made exit
 git status | grep 'nothing to commit' &> /dev/null
