@@ -18,10 +18,44 @@ gclonecd $GIT_REPOSITORY_URL
 
 git checkout -b $GIT_BRANCH
 
+# Iterate through a possible list of files or directories to include.  If it's a directory then use -path rather than -name
+IFS=',' read -a excludeFilesArray <<< $EXCLUDE_FILES_PATTERN
+for j in "${excludeFilesArray[@]}"
+do
+   :
+   # check to see if a this includes a directory
+     if [[ $j == *\/* ]]
+     then
+       echo "$j seems to be a directory, adapting find command"
+       FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING' ! -path "*/'$j'"'
+     else
+       FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING' ! -name "'$j'"'
+     fi
+done
+
+# I'm sure there's a better way and reuse the similar code above but duplicateing for now
+IFS=',' read -a includeFilesArray <<< $INCLUDE_FILES_PATTERN
+for i in "${includeFilesArray[@]}"
+do
+   :
+   # check to see if a directory appears
+     if [[ $i == *\/* ]]
+     then
+       echo "$i seems to be a directory, adapting find command"
+       FIND_INCLUDE_STRING=$FIND_INCLUDE_STRING'find -path "*/'$i'"' $FIND_EXCLUDE_STRING
+     else
+       FIND_INCLUDE_STRING=$FIND_INCLUDE_STRING'find -name "'$i'"' $FIND_EXCLUDE_STRING
+     fi
+done
+
+
+
+echo "Find command will be: find $FIND_INCLUDE_STRING $FIND_EXCLUDE_STRING"
+
 # use sed to search and replace
 # using '@' as the delimeter so to avoid a clash when searching for pom versions, e.g. <version>1.0.0</version>
 # using '\' to escape search string and avoid matching '.' as metachars
-perl -p -i -e 's@\Q'$FROM'@'$TO'@g' `find . -name "$INCLUDE_FILE_PATTERN" ! -name "$EXCLUDE_FILE_PATTERN"`
+perl -p -i -e 's@\Q'$FROM'@'$TO'@g' `find $FIND_INCLUDE_STRING $FIND_EXCLUDE_STRING`
 
 # if no changes have been made exit
 git status | grep 'nothing to commit' &> /dev/null
