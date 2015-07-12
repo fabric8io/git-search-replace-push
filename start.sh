@@ -18,7 +18,10 @@ gclonecd $GIT_REPOSITORY_URL
 
 git checkout -b $GIT_BRANCH
 
-# Iterate through a possible list of files or directories to include.  If it's a directory then use -path rather than -name
+
+
+# Loop round the list of exclude files or directories and build a env var that contains everything to exclude using the correct options whether a file or directory is being requested
+# If it's a directory then in the find command later we should use -path rather than -name
 IFS=',' read -a excludeFilesArray <<< $EXCLUDE_FILES_PATTERN
 for j in "${excludeFilesArray[@]}"
 do
@@ -26,14 +29,18 @@ do
    # check to see if a this includes a directory
      if [[ $j == *\/* ]]
      then
-       echo "$j seems to be a directory, adapting find command"
-       FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING' ! -path "*/'$j'"'
+       echo "$j containes a directory so using -path to exclude files"
+       FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING" ! -path "*/$j""
      else
-       FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING' ! -name "'$j'"'
+       echo "$j does not containe a directory so using -name to exlude files"
+       FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING" ! -name "$j""
      fi
 done
 
-# I'm sure there's a better way and reuse the similar code above but duplicateing for now
+echo "FIND_EXCLUDE_STRING=$FIND_EXCLUDE_STRING"
+
+# Now we have a list of files to exclude, loop round all included files or directories and perform the search and replace
+# Using Perl as it's easier when escaping search strings
 IFS=',' read -a includeFilesArray <<< $INCLUDE_FILES_PATTERN
 for i in "${includeFilesArray[@]}"
 do
@@ -41,21 +48,14 @@ do
    # check to see if a directory appears
      if [[ $i == *\/* ]]
      then
-       echo "$i seems to be a directory, adapting find command"
-       FIND_INCLUDE_STRING=$FIND_INCLUDE_STRING'find -path "*/'$i'"' $FIND_EXCLUDE_STRING
+       echo "Replacing files $i, changing $FROM to $TO but  $FIND_EXCLUDE_STRING"
+       perl -p -i -e 's@\Q'$FROM'@'$TO'@g' `find . -path "*/$i" $FIND_EXCLUDE_STRING`
      else
-       FIND_INCLUDE_STRING=$FIND_INCLUDE_STRING'find -name "'$i'"' $FIND_EXCLUDE_STRING
+       echo "Replacing files $i, changing $FROM to $TO but  $FIND_EXCLUDE_STRING"
+       perl -p -i -e 's@\Q'$FROM'@'$TO'@g' `find . -name "$i" $FIND_EXCLUDE_STRING`
      fi
 done
 
-
-
-echo "Find command will be: find $FIND_INCLUDE_STRING $FIND_EXCLUDE_STRING"
-
-# use sed to search and replace
-# using '@' as the delimeter so to avoid a clash when searching for pom versions, e.g. <version>1.0.0</version>
-# using '\' to escape search string and avoid matching '.' as metachars
-perl -p -i -e 's@\Q'$FROM'@'$TO'@g' `find $FIND_INCLUDE_STRING $FIND_EXCLUDE_STRING`
 
 # if no changes have been made exit
 git status | grep 'nothing to commit' &> /dev/null
